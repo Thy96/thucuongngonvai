@@ -159,22 +159,30 @@ function Cart({
     }
   };
 
-  const [selectedClient, setSelectedClient] = useState("M");
+  const [selectedClient, setSelectedClient] = useState([{
+    size: 'M',
+    id_product: null
+  }]);
 
-  function handleSelectChange(e, id_product) {
-    setSelectedClient(e.target.value);
+  const [newArr, setNewArr] = useState([]);
 
-    console.log(id_product);
-    cartItems.filter(item => {
-      return item.id == id_product
+  function handleSelectChange(e, id_product, index) {
+    const size = e.target.value;
+    setSelectedClient(size, id_product);
 
-    })
-
-    console.log(cartItems);
+    cartItems.filter((item, index) => {
+      if (item.id === id_product) {
+        newArr.map((item, index) => {
+          item = { ...item, size };
+          newArr.push(item);
+        })
+      }
+    });
+    console.log(newArr);
   }
 
 
-  const listProducts = cartItems.map((item) => {
+  const listProducts = cartItems.map((item, index) => {
     return (
       <dl key={item.id} className={cx("content-flex")}>
         <dd className={cx("content-flex-img")}>
@@ -183,7 +191,7 @@ function Cart({
         {/* <dd className={cx("content-flex-name")}>{item.name}</dd> */}
 
         <dd className={cx("content-flex-name")}>{item.name}<br></br>
-          <select value={selectedClient} onChange={(e) => handleSelectChange(e, item.id)}>
+          <select onChange={(e) => handleSelectChange(e, item.id, index)}>
             {item.get_product_option.map((it) => (
               <option value={it.name}>{it.name}</option>
             ))}
