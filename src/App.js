@@ -3,8 +3,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./assets/css/common.css";
 import "./assets/css/home.css";
 import DefaultLayout from "./layout/DefaultLayout";
-import * as pagesServices from "./api-service/pagesServices";
-import axios from "axios";
+import * as cateListID from "./api-service/categoryServices";
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -56,13 +55,10 @@ function App() {
   useEffect(() => {
     // Get API
     const fetchAPI = async () => {
-      // const result = await pagesServices.pages(cartItems);
-      // const result = await axios.get(`https://shop.thomas-dave.store/api?storeId=1&page=1`)
-      // console.log(result?.data);
-      // setItems(result?.data);
+      const result = await cateListID.cateListID(1);
+      setItems(result);
       setLoading(false);
     };
-
 
     fetchAPI();
   }, [cartItems]); // cartItems -> Sau mỗi lần thêm Item thì cập nhập lại initialStateValue

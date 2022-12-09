@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import classNames from "classnames/bind";
 import styles from "./Product.module.scss";
 import images from "../../assets/images";
@@ -7,16 +7,14 @@ import { AlertAddCart } from "../ToastAlert";
 import { ToastContainer } from "react-toastify";
 import { useTranslation } from 'react-i18next';
 
-import Paginator from "react-hooks-paginator";
-import * as pagesServices from "../../api-service/pagesServices";
+import * as cateListID from "../../api-service/categoryServices";
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import TabContext from '@mui/lab/TabContext';
 import Tabs from "@mui/material/Tabs";
-import TabPanel from '@mui/lab/TabPanel';
-import CategoryProduct from "./CategoryProduct";
-import axios from "axios";
+
+import LazyLoad from 'react-lazyload'
 
 const cx = classNames.bind(styles);
 
@@ -26,131 +24,102 @@ function Product({ loading, items, handleAdd }) {
   const [sortItem, setSortItem] = useState(items);
   const [inputSearch, setInputSearch] = useState("");
   const [filters, setFilters] = useState("default");
-  const [filterSearchProduct, setFilterSearchProduct] = useState(sortItem);
+  const [filterSearchProduct, setFilterSearchProduct] = useState(items);
+  const [message, setMessage] = useState('');
 
   const [offset, setOffset] = useState(0);
-
-  // Xử lý tìm kiếm sản phẩm
-  const handleSearchProducts = (e) => {
-    setInputSearch(e.target.value);
-    let updatedProducts = sortItem;
-    if (e.target.value) {
-      updatedProducts = sortItem.filter((item) =>
-        item.name.toLowerCase().includes(e.target.value.toLowerCase())
-      );
-    }
-    setFilterSearchProduct(updatedProducts);
-  };
+  const [currentPage, setCurrentPage] = useState(1);
+  const [categoryID, setCategoryID] = useState(1)
 
   // Xử lý Select option tăng giảm giá
   const sortMethods = {
     default: { method: (a, b) => (a.id > b.id ? 1 : -1) }, // Chọn giá mặc định ban đầu
-    ascending: { method: (a, b) => a.price - b.price }, // Chọn giá tăng dần
-    descending: { method: (a, b) => b.price - a.price }, // Chọn giá giảm dần
+    descending: { method: (a, b) => a.price - b.price }, // Chọn giá giảm dần
+    ascending: { method: (a, b) => b.price - a.price }, // Chọn giá tăng dần
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [categoryID, setCategoryID] = useState(1)
+  function removeVietnameseTones(str) {
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
+    str = str.replace(/đ/g, "d");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
+    // Some system encode vietnamese combining accent as individual utf-8 characters
+    // Một vài bộ encode coi các dấu mũ, dấu chữ như một kí tự riêng biệt nên thêm hai dòng này
+    str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, ""); // ̀ ́ ̃ ̉ ̣  huyền, sắc, ngã, hỏi, nặng
+    str = str.replace(/\u02C6|\u0306|\u031B/g, ""); // ˆ ̆ ̛  Â, Ê, Ă, Ơ, Ư
+    // Remove extra spaces
+    // Bỏ các khoảng trắng liền nhau
+    str = str.replace(/ + /g, " ");
+    str = str.trim();
+    // Remove punctuations
+    // Bỏ dấu câu, kí tự đặc biệt
+    str = str.replace(/!|@|%|\^|\*|\(|\)|\+|\=|\<|\>|\?|\/|,|\.|\:|\;|\'|\"|\&|\#|\[|\]|~|\$|_|`|-|{|}|\||\\/g, " ");
+    return str;
+  }
 
-  const arrData = [
-    { id: 1, store_id: 1, crawl_id: 681, name: 'Hoa Tuyết Berry Berry', description: '' }
-    ,
-    { id: 2, store_id: 1, crawl_id: 682, name: 'Trà sữa Berry Berry', description: '' }
-    ,
-    { id: 3, store_id: 1, crawl_id: 661, name: 'Caramen chảy', description: '' }
-    ,
-    { id: 4, store_id: 1, crawl_id: 660, name: 'Cappuchino - Vietnamo', description: '' }
-    ,
-    { id: 5, store_id: 1, crawl_id: 659, name: 'Latte Latte', description: '' }
-    ,
-    { id: 6, store_id: 1, crawl_id: 658, name: 'Ngọc Viễn Đông', description: '' }
-    ,
-    { id: 7, store_id: 1, crawl_id: 632, name: 'Phin Sữa Đá - Năng Lượng', description: '' }
-    ,
-    { id: 8, store_id: 1, crawl_id: 631, name: 'Phin Đen Đá - Đậm Đà', description: '' }
-    ,
-    { id: 9, store_id: 1, crawl_id: 594, name: 'Sữa Chua Phúc Bồn Tử Đác Cam', description: 'Berry Berry Yogurt' }
-    ,
-    { id: 10, store_id: 1, crawl_id: 592, name: 'Sữa Chua Xoài Đác Thơm', description: 'Tropical Yogurt' }
-    ,
-    { id: 11, store_id: 1, crawl_id: 552, name: 'Trà Lài Đác Thơm', description: 'Forest Jasmine Tea' }
-    ,
-    { id: 12, store_id: 1, crawl_id: 551, name: 'Hồng Trà Đác Cam', description: 'Forest Black Tea' }
-    ,
-    { id: 13, store_id: 1, crawl_id: 538, name: 'Trà Nhãn - Sen', description: 'Longan Tea (Lotus)' }
-    ,
-    { id: 14, store_id: 1, crawl_id: 535, name: 'Trà Nhãn - Lài', description: 'Longan Tea (Jasmine)' }
-    ,
-    { id: 15, store_id: 1, crawl_id: 502, name: 'Trà Vải - Lài', description: 'Lychee Tea (Jasmine)' }]
-  // Xử lý Phân Trang cho sản phẩm
-  const handleChangeCateID = async (cate_ID, key, currentPage) => {
-    // const result = await pagesServices.pages(e, cate_ID, currentPage);
-    // console.log(e);
-    // console.log(cate_ID);
-    // console.log("phan trang" + currentPage);
-    // setCategoryID(cate_ID);
-    // setSortItem(result?.data);
-    // console.log('B: ', currentPage);
-    // const result = await axios.get(`https://shop.thomas-dave.store/api?storeId=${cate_ID}&page=${currentPage}`);
-    // if (result) {
-    //   console.log(result);
-    //   // console.log('A: ', currentPage);
-    //   setSortItem(result?.data.data.products.data);
-    //   // setCategoryID(currentPage);
-    //   // setCurrentPage(currentPage);
-    // }
-    // setCurrentPage(1);
-    // if (key !== 'tab') {
-    //   const result = await axios.get(`https://shop.thomas-dave.store/api?storeId=1&page=1`);
-    //   setSortItem(result?.data.data.products.data);
-    // } else if (key === 'tab') {
-    //   const result = await axios.get(`https://shop.thomas-dave.store/api?storeId=${cate_ID}&page=${currentPage}`);
-    //   if (result) {
-    //     console.log("thay doi cate", result?.data.data.products.data);
-    //     // console.log('A: ', currentPage);
-    //     setSortItem(result?.data.data.products.data);
-    //     setCategoryID(cate_ID);
+  // Xử lý tìm kiếm sản phẩm
+  const handleSearchProducts = (e) => {
+    const textReg = e.target.value;
+    setInputSearch(e.target.value);
+    setMessage("")
+    sortItem.concat(sortItem)
+    const newData = sortItem.filter(item => {
+      const itemData = `${removeVietnameseTones(item.name.toLowerCase())}`;
+      return itemData.indexOf(removeVietnameseTones(textReg.toLowerCase())) > -1;
+    });
+    if (textReg.length > 0) {
+      if (newData.length > 0) {
+        setFilterSearchProduct(newData);
+      } else {
+        setFilterSearchProduct([]);
+        setMessage('Không có sản phẩm!!!')
+      }
+    } else {
+      setFilterSearchProduct(sortItem)
+    }
+  };
 
-    //   }
-    // }
+  // Xử lý Tablist cho sản phẩm
+  const handleChangeCateID = async (cate_ID, key) => {
     if (key === 'tab') {
       try {
-        const result = await axios.get(`https://shop.thomas-dave.store/api?storeId=${cate_ID}&page=${currentPage}`);
+        const result = await cateListID.cateListID(cate_ID)
         if (result) {
-          // console.log('A: ', currentPage);
-          setSortItem(result?.data.data.products.data);
+          setSortItem(result);
+          setFilterSearchProduct(result);
           setCategoryID(cate_ID);
           setCurrentPage(currentPage)
+          setInputSearch("")
         }
       } catch (error) {
 
       }
     }
-    // console.log("thay doi cate", cate_ID, " giá trị cua page cateid: ", currentPage);
   };
 
   // Xử lý Phân Trang cho sản phẩm
-  const handleChangePage = async (currentPage) => {
-    const result = await axios.get(`https://shop.thomas-dave.store/api?storeId=${categoryID}&page=${currentPage}`);
-    // setSortItem(result?.data.data.products.data);
-    if (result) {
-      setSortItem(result?.data.data.products.data);
-      setCurrentPage(currentPage);
-    }
-
-    // console.log("giá trị cua cateID: ", categoryID, " giá trị cua page: ", currentPage);
-  };
+  // const handleChangePage = async (currentPage) => {
+  //   // const result = await axios.get(`https://shop.thomas-dave.store/api?storeId=${categoryID}&page=${currentPage}`);
+  //   const result = await pagesServices.pages(categoryID, currentPage)
+  //   if (result) {
+  //     // setSortItem(result?.data.data.products.data);
+  //     setSortItem(result?.data);
+  //     setCurrentPage(currentPage);
+  //   }
+  // };
 
   useEffect(() => {
-    const init = () => {
-      if (sortItem) {
-
-      } else {
-        handleChangeCateID(null, '', 1);
-      }
-    }
-    init();
-
+    setFilterSearchProduct(items)
   }, [items]); // Items được gán giá trị khi component Mount
 
   return (
@@ -204,34 +173,23 @@ function Product({ loading, items, handleAdd }) {
               <option value="descending">{t('homepage.sortDESC')}</option>
             </select>
           </div>
-
           <Box sx={{ width: '100%', typography: 'body1' }}>
             <TabContext value={categoryID?.toString()}>
               <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                <Tabs value={categoryID} onChange={(e, newValue) => handleChangeCateID(newValue, 'tab', currentPage)}>
-                  <Tab label="Item One" value={1} />
-                  <Tab label="Item Two" value={2} />
-                  <Tab label="Item Three" value={3} />
+                <Tabs value={categoryID} onChange={(e, newValue) => handleChangeCateID(newValue, 'tab')}>
+                  <Tab label="Bà Ba" value={1} />
+                  <Tab label="Bà Tư" value={2} />
+                  <Tab label="Bà Năm" value={3} />
                 </Tabs>
               </Box>
-              <TabPanel value={"1"}>Item 1</TabPanel>
-              <TabPanel value={"2"}>Item 2</TabPanel>
-              <TabPanel value={"3"}>Item 3</TabPanel>
             </TabContext>
           </Box>
 
-          <CategoryProduct currentPage={currentPage} inputSearch={inputSearch} sortMethods={sortMethods} filters={filters} handleAdd={handleAdd} sortItem={sortItem} setOffset={setOffset} handleChangeCateID={handleChangeCateID} handleChangePage={handleChangePage}
-          ></CategoryProduct>
-
-          {/* {console.log(currentPage)} */}
-
-          {/* <div className="list-product">
-            {sortItem?.filter((item) =>
-              item.name.toLowerCase().includes(inputSearch.toLowerCase())
-            )
+          <div className="list-product">
+            {filterSearchProduct
               .sort(sortMethods[filters].method)
               .map((item) => (
-                <div className="product-card" key={item.id}>
+                <LazyLoad className="product-card" debounce={100} height={200} key={item.id} placeholder={<img src={images.loading} alt="loading" />}>
                   <div className="img-wrap">
                     <img src={item.get_image.url} alt="" />
                   </div>
@@ -246,12 +204,14 @@ function Product({ loading, items, handleAdd }) {
                       <AlertAddCart></AlertAddCart>
                     </div>
                   </div>
-                </div>
+                </LazyLoad>
+
               ))}
-          </div> */}
+
+            {message}
+          </div>
 
           <ToastContainer />
-          {/* {console.log(sortItem.length)} */}
           {/* <div className={cx("pagination-pro")}>
             <Paginator
               totalRecords={sortItem.length}
@@ -259,7 +219,7 @@ function Product({ loading, items, handleAdd }) {
               pageNeighbours={2}
               setOffset={setOffset}
               currentPage={currentPage}
-              setCurrentPage={handleChangeCateID}
+              setCurrentPage={handleChangePage}
               pagePrevText="..."
               pageNextText="..."
             />

@@ -1,18 +1,14 @@
-import * as request from "../utils/request";
+import axios from "axios";
+// import * as request from "../utils/request";
 
-// Get API category
-export const category = async (cateID) => {
-    try {
-        const res = await request.get(``, {
-            params: {
-                storeId: cateID,
-                page: 1,
-            },
-        });
+// Get API pages
+export const cateListID = async (cate_ID) => {
+  try {
+    const res = await axios.get(`https://shop.thomas-dave.store/api?storeId=${cate_ID}`)
 
-        return res.data.products;
-    } catch (error) {
-        console.log(error);
-        return error;
-    }
+    return res.data.data.products;
+  } catch (error) {
+    console.log(error);
+    return error;
+  }
 };

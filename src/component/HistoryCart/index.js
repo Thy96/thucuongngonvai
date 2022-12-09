@@ -8,12 +8,16 @@ const cx = classNames.bind(styles);
 
 function HistoryCart() {
   const { t } = useTranslation()
-  const store_newList = JSON.parse(localStorage.getItem("ListOrderID"));
-  const [orderHistory, setOrderHistory] = useState([]);
+  const [orderHistory, setOrderHistory] = useState(() => {
+    const store_newList = JSON.parse(localStorage.getItem("ListOrderID"));
+    return store_newList ?? [0];
+  });
+
+  console.log(orderHistory);
 
   const getOrderList = async () => {
     const store_arrList = [];
-    store_newList?.map((item) => store_arrList.push(item));
+    orderHistory?.map((item) => store_arrList.push(item));
     const result = await getOrderHistory.getOrderHistory(store_arrList);
     setOrderHistory(result);
   };
@@ -23,7 +27,7 @@ function HistoryCart() {
   }, []);
 
   const listProducts = orderHistory?.map((items) => {
-    return items.get_order_items.map((item) => {
+    return items.get_order_items?.map((item) => {
       return (
         <dl key={item.id} className={cx("content-flex")}>
           <dd className={cx("content-flex-img")}>
@@ -49,9 +53,9 @@ function HistoryCart() {
   return (
     <>
       <div className={cx("modal-pop-up")}>
-        {store_newList.length === 0 ? (
+        {listProducts?.length === 0 ? (
           <div>
-            {store_newList.length === 0 && (
+            {listProducts?.length === 0 && (
               <div style={{ margin: 0, maxWidth: "100% !important" }}>
                 {t('homepage.noteOrderHistory')}
               </div>
@@ -61,7 +65,7 @@ function HistoryCart() {
           <>
             <div className={cx("left-info")}>
               <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
-              {t('homepage.orderHistory')}
+                {t('homepage.orderHistory')}
               </h2>
               <div className={cx("content-width")}>
                 <div className={cx("content-scroll")}>

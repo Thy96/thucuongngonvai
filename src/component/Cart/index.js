@@ -159,13 +159,37 @@ function Cart({
     }
   };
 
+  const [selectedClient, setSelectedClient] = useState("M");
+
+  function handleSelectChange(e, id_product) {
+    setSelectedClient(e.target.value);
+
+    console.log(id_product);
+    cartItems.filter(item => {
+      return item.id == id_product
+
+    })
+
+    console.log(cartItems);
+  }
+
+
   const listProducts = cartItems.map((item) => {
     return (
       <dl key={item.id} className={cx("content-flex")}>
         <dd className={cx("content-flex-img")}>
           <img src={item.get_image.url} alt="" />
         </dd>
-        <dd className={cx("content-flex-name")}>{item.name}</dd>
+        {/* <dd className={cx("content-flex-name")}>{item.name}</dd> */}
+
+        <dd className={cx("content-flex-name")}>{item.name}<br></br>
+          <select value={selectedClient} onChange={(e) => handleSelectChange(e, item.id)}>
+            {item.get_product_option.map((it) => (
+              <option value={it.name}>{it.name}</option>
+            ))}
+          </select>
+        </dd>
+
 
         <dd className={cx("content-flex-qty")}>
           <button onClick={() => handleRemove(item)}>-</button>
